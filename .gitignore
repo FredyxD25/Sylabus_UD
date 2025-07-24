@@ -1,4 +1,3 @@
-
 # Ignorar archivos y carpetas de Python
 __pycache__/
 *.py[cod]
@@ -21,3 +20,8 @@ env/
 # Archivos de sistema (opcional)
 .DS_Store
 Thumbs.db
+
+# Ignorar archivos y carpetas de PyInstaller (¡NUEVAS LÍNEAS!)
+build/
+dist/
+main.spec

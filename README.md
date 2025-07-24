@@ -8,4 +8,5 @@ pip install pywin32
 pip install pyinstaller
 
 uso pyinstaller:
-    pyinstaller --onefile --windowed --add-data "..\Syllabus_Electronica;Syllabus_Electronica" main.py
+    cd Codigo 
+    pyinstaller --onefile --windowed main.py
