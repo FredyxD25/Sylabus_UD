@@ -1,27 +1,13 @@
-import tkinter as tk
 from tkinter import ttk, messagebox
+from func.unidor_pdf import UnidorPDF
+import tkinter as tk
 import os
-from PyPDF2 import PdfMerger
-
-class UnidorPDF:
-    @staticmethod
-    def unir(archivos, salida="PDF_unido.pdf"):
-        try:
-            combinador = PdfMerger()
-            for archivo in archivos:
-                combinador.append(archivo)
-            combinador.write(salida)
-            combinador.close()
-            return True, salida
-        except Exception as e:
-            return False, str(e)
 
 class VisualizadorGUI:
     def __init__(self, root, datos_archivos):
         self.root = root
         self.datos = datos_archivos
-        self.archivos_radio = {}  # clave: nombre archivo, valor: tk.IntVar
-        self.subcarpeta_paths = {}  # para encontrar ruta completa
+        self.check_vars = {}  # Diccionario para variables de Checkbutton
 
         self.root.title("Visualizador de Archivos por Subcarpetas")
 
@@ -31,25 +17,19 @@ class VisualizadorGUI:
         self.menu_filtro = ttk.Combobox(root, textvariable=self.filtro_var, values=opciones, state="readonly")
         self.menu_filtro.pack(pady=5)
         self.menu_filtro.bind("<<ComboboxSelected>>", self.actualizar_vista)
-        
-        # Frame contenedor para árbol y scrollbar
-        frame_arbol = ttk.Frame(root)
-        frame_arbol.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # Scrollbar vertical
-        scrollbar = ttk.Scrollbar(frame_arbol, orient="vertical")
-        scrollbar.pack(side="right", fill="y")
+        # Canvas con scrollbar para mostrar archivos
+        self.canvas = tk.Canvas(root)
+        self.frame_scroll = ttk.Frame(self.canvas)
+        self.scrollbar = ttk.Scrollbar(root, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
 
-        # Árbol para mostrar archivos
-        self.tree = ttk.Treeview(frame_arbol, selectmode="extended", yscrollcommand=scrollbar.set)
-        self.tree.pack(side="left", expand=True, fill="both")
+        self.scrollbar.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.create_window((0, 0), window=self.frame_scroll, anchor="nw")
 
-        scrollbar.config(command=self.tree.yview)
-
-        self.tree["columns"] = ("Tipo",)
-        self.tree.heading("#0", text="Archivo")
-        self.tree.bind("<<TreeviewSelect>>", self.verificar_seleccion_pdf)
-
+        self.frame_scroll.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         # Botón para unir PDFs
         self.boton_unir = ttk.Button(root, text="Unir PDFs seleccionados", command=self.unir_pdfs, state="disabled")
@@ -57,42 +37,50 @@ class VisualizadorGUI:
 
         self.actualizar_vista()
 
+    def _on_mousewheel(self, event):
+        self.canvas.yview_scroll(-1 * (event.delta // 120), "units")
+
     def actualizar_vista(self, event=None):
+        for widget in self.frame_scroll.winfo_children():
+            widget.destroy()
+
+        self.check_vars.clear()
         filtro = self.filtro_var.get()
-        self.tree.delete(*self.tree.get_children())
 
         for subcarpeta, tipos in self.datos.items():
-            nodo = self.tree.insert("", "end", text=f"📁 {subcarpeta}", open=True)
+            label_sub = ttk.Label(self.frame_scroll, text=f"📁 {subcarpeta}", font=("Arial", 10, "bold"))
+            label_sub.pack(anchor="w", pady=(10, 0))
 
             for tipo, archivos in tipos.items():
-                if filtro != "todos" and tipo != filtro:
+                if filtro != "Todos" and tipo != filtro:
                     continue
                 for archivo in archivos:
                     nombre = os.path.basename(archivo)
-                    self.tree.insert(nodo, "end", text=nombre, values=(tipo,), tags=(archivo,))
 
-        # Activar o desactivar botón si cambia el filtro
-        self.boton_unir["state"] = "normal" if self.filtro_var.get() == "pdf" else "disabled"
+                    if tipo == "pdf":
+                        var = tk.IntVar()
+                        self.check_vars[archivo] = var
+                        chk = ttk.Checkbutton(self.frame_scroll, text=nombre, variable=var, command=self.verificar_seleccion_pdf)
+                        chk.pack(anchor="w", padx=20)
+                    else:
+                        # Solo mostrar otros archivos como texto
+                        lbl = ttk.Label(self.frame_scroll, text=nombre)
+                        lbl.pack(anchor="w", padx=20)
 
-    def verificar_seleccion_pdf(self, event=None):
-        if self.filtro_var.get() != "pdf":
-            self.boton_unir["state"] = "disabled"
-            return
+        self.verificar_seleccion_pdf()
 
-        seleccion = self.tree.selection()
-        archivos_pdf = [self.tree.item(i, "tags")[0] for i in seleccion if self.tree.item(i, "values")[0] == "pdf"]
-
-        self.boton_unir["state"] = "normal" if archivos_pdf else "disabled"
+    def verificar_seleccion_pdf(self):
+        seleccionados = [ruta for ruta, var in self.check_vars.items() if var.get() == 1]
+        self.boton_unir["state"] = "normal" if seleccionados else "disabled"
 
     def unir_pdfs(self):
-        seleccion = self.tree.selection()
-        archivos = [self.tree.item(i, "tags")[0] for i in seleccion if self.tree.item(i, "values")[0] == "pdf"]
+        seleccionados = [ruta for ruta, var in self.check_vars.items() if var.get() == 1]
 
-        if not archivos:
+        if not seleccionados:
             messagebox.showwarning("Advertencia", "Selecciona al menos un PDF.")
             return
 
-        exito, resultado = UnidorPDF.unir(archivos)
+        exito, resultado = UnidorPDF.unir(seleccionados)
 
         if exito:
             messagebox.showinfo("Éxito", f"PDFs unidos correctamente en:\n{resultado}")
