@@ -7,7 +7,6 @@ import os
 class VisualizadorGUI:
     def __init__(self, root, datos_archivos):
         self.gestor = GestorSeleccionPDF()
-        self.modo_columnas = False  # Vista por defecto: una columna
         self.root = root
         self.datos = datos_archivos
         self.check_vars = {}  # Diccionario para variables de Checkbutton
@@ -15,7 +14,7 @@ class VisualizadorGUI:
         self.root.title("Visualizador de Archivos por Subcarpetas")
         self.root.state('zoomed')  # Para Windows, pantalla completa sin bordes negros
         
-        # --- Frame superior para controles (filtro, búsqueda, botón1, botón2) ---
+        # --- Frame superior para controles (filtro, búsqueda, botón) ---
         frame_controles = ttk.Frame(root)
         frame_controles.pack(fill="x", padx=10, pady=5)
 
@@ -35,12 +34,8 @@ class VisualizadorGUI:
         # Botón a la derecha
         self.boton_unir = ttk.Button(frame_controles, text="Unir PDFs seleccionados", command=self.unir_pdfs, state="disabled")
         self.boton_unir.pack(side="right")
-        
-        self.boton_vista = ttk.Button(frame_controles, text="Cambiar vista", command=self.toggle_modo_vista)
-        self.boton_vista.pack(side="right", padx=10)
 
-
-        # -----------------Canvas con scrollbar para mostrar archivos
+        # Canvas con scrollbar para mostrar archivos
         self.canvas = tk.Canvas(root)
         self.frame_scroll = ttk.Frame(self.canvas)
         self.scrollbar = ttk.Scrollbar(root, orient="vertical", command=self.canvas.yview)
@@ -53,9 +48,6 @@ class VisualizadorGUI:
         self.frame_scroll.bind("<Configure>", lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
-        self.actualizar_vista()
-    def toggle_modo_vista(self):
-        self.modo_columnas = not self.modo_columnas
         self.actualizar_vista()
 
     def _on_mousewheel(self, event):
@@ -72,59 +64,50 @@ class VisualizadorGUI:
         ya_mostradas = set()
         widgets_mostrados = set()  # Para saber qué Checkbuttons se usaron esta vez
 
-        if self.modo_columnas:
-            columnas = [ttk.Frame(self.frame_scroll) for _ in range(3)]
-            for col in columnas:
-                col.pack(side="left", fill="both", expand=True, padx=10)
+        for subcarpeta, tipos in self.datos.items():
+            partes = subcarpeta.split(os.sep)
 
-            subcarpetas = list(self.datos.items())
-            partes_por_columna = len(subcarpetas) // 3 + 1
+            ruta_actual = ""
+            for i, parte in enumerate(partes):
+                ruta_actual = os.path.join(ruta_actual, parte)
+                if ruta_actual not in ya_mostradas:
+                    sangria = "    " * i
+                    label = ttk.Label(self.frame_scroll, text=f"{sangria}📁 {parte}", font=("Arial", 10, "bold"))
+                    label.pack(anchor="w", pady=(0 if i == 0 else 2, 0))
+                    ya_mostradas.add(ruta_actual)
 
-            for idx_col, col in enumerate(columnas):
-                for subcarpeta, tipos in subcarpetas[idx_col * partes_por_columna : (idx_col + 1) * partes_por_columna]:
-                    self.mostrar_subcarpeta(col, subcarpeta, tipos, texto_busqueda, filtro, ya_mostradas, widgets_mostrados)
-        else:
-            for subcarpeta, tipos in self.datos.items():
-                self.mostrar_subcarpeta(self.frame_scroll, subcarpeta, tipos, texto_busqueda, filtro, ya_mostradas, widgets_mostrados)
+            for tipo, archivos in tipos.items():
+                if filtro != "Todos" and tipo != filtro:
+                    continue
+                for archivo in archivos:
+                    nombre = os.path.basename(archivo)
 
-    def mostrar_subcarpeta(self, parent_frame, subcarpeta, tipos, texto_busqueda, filtro, ya_mostradas, widgets_mostrados):
-        partes = subcarpeta.split(os.sep)
+                    if texto_busqueda and texto_busqueda not in nombre.lower():
+                        continue  # No coincide con búsqueda
 
-        ruta_actual = ""
-        for i, parte in enumerate(partes):
-            ruta_actual = os.path.join(ruta_actual, parte)
-            if ruta_actual not in ya_mostradas:
-                sangria = "    " * i
-                label = ttk.Label(parent_frame, text=f"{sangria}📁 {parte}", font=("Arial", 10, "bold"))
-                label.pack(anchor="w", pady=(0 if i == 0 else 2, 0))
-                ya_mostradas.add(ruta_actual)
+                    sangria_px = 20 + len(partes) * 10
 
-        for tipo, archivos in tipos.items():
-            if filtro != "Todos" and tipo != filtro:
-                continue
-            for archivo in archivos:
-                nombre = os.path.basename(archivo)
+                    if tipo == "pdf":
+                        if archivo not in self.check_vars:
+                            var = tk.IntVar()
+                            chk = ttk.Checkbutton(self.frame_scroll, text=nombre, variable=var, command=self.verificar_seleccion_pdf)
+                            self.check_vars[archivo] = (var, chk)
+                            chk.pack_forget()
+                        else:
+                            var, chk = self.check_vars[archivo]
 
-                if texto_busqueda and texto_busqueda not in nombre.lower():
-                    continue  # No coincide con búsqueda
-
-                sangria_px = 20 + len(partes) * 10
-
-                if tipo == "pdf":
-                    if archivo not in self.check_vars:
-                        var = tk.IntVar()
-                        chk = ttk.Checkbutton(parent_frame, text=nombre, variable=var, command=self.verificar_seleccion_pdf)
-                        self.check_vars[archivo] = (var, chk)
-                        chk.pack_forget()
+                        chk.pack(anchor="w", padx=sangria_px)
+                        widgets_mostrados.add(chk)
                     else:
-                        var, chk = self.check_vars[archivo]
+                        lbl = ttk.Label(self.frame_scroll, text=nombre)
+                        lbl.pack(anchor="w", padx=sangria_px)
 
-                    chk.pack(anchor="w", padx=sangria_px)
-                    widgets_mostrados.add(chk)
-                else:
-                    lbl = ttk.Label(parent_frame, text=nombre)
-                    lbl.pack(anchor="w", padx=sangria_px)
+        # Ocultar los checkbuttons no usados (siguen existiendo pero no se ven)
+        for var, chk in self.check_vars.values():
+            if chk not in widgets_mostrados:
+                chk.pack_forget()
 
+        self.verificar_seleccion_pdf()
 
     def verificar_seleccion_pdf(self):
         seleccionados = [ruta for ruta, (var, _) in self.check_vars.items() if var.get() == 1]
