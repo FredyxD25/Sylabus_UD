@@ -1,12 +1,17 @@
 from tkinter import ttk, messagebox
 from func.unidor_pdf import UnidorPDF
 from func.gestor_seleccion_pdf import GestorSeleccionPDF
+from func.conversor_excel_pdf import ConversorExcelPDF
+
 import tkinter as tk
 import os
 
 class VisualizadorGUI:
     def __init__(self, root, datos_archivos):
+        self.root = root
         self.gestor = GestorSeleccionPDF()
+        self.conversor_excel = ConversorExcelPDF()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.modo_columnas = False  # Vista por defecto: una columna
         self.root = root
         self.datos = datos_archivos
@@ -36,8 +41,8 @@ class VisualizadorGUI:
         self.boton_unir = ttk.Button(frame_controles, text="Unir PDFs seleccionados", command=self.unir_pdfs, state="disabled")
         self.boton_unir.pack(side="right")
         
-        self.boton_vista = ttk.Button(frame_controles, text="Cambiar vista", command=self.toggle_modo_vista)
-        self.boton_vista.pack(side="right", padx=10)
+        '''self.boton_vista = ttk.Button(frame_controles, text="Cambiar vista", command=self.toggle_modo_vista)
+        self.boton_vista.pack(side="right", padx=10)'''
 
 
         # -----------------Canvas con scrollbar para mostrar archivos
@@ -54,6 +59,7 @@ class VisualizadorGUI:
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
 
         self.actualizar_vista()
+        
     def toggle_modo_vista(self):
         self.modo_columnas = not self.modo_columnas
         self.actualizar_vista()
@@ -125,17 +131,38 @@ class VisualizadorGUI:
                     lbl = ttk.Label(parent_frame, text=nombre)
                     lbl.pack(anchor="w", padx=sangria_px)
 
+    def on_closing(self):
+        if hasattr(self, 'conversor_excel'):
+            self.conversor_excel.cerrar()
+        self.root.destroy()
 
     def verificar_seleccion_pdf(self):
         seleccionados = [ruta for ruta, (var, _) in self.check_vars.items() if var.get() == 1]
         self.gestor.actualizar_seleccion(seleccionados)
 
         self.boton_unir["state"] = "normal" if self.gestor.hay_seleccion() else "disabled"
+        
+        seleccionados = []
 
     def unir_pdfs(self):
+        seleccionados = []
+
+        for ruta_pdf, (var, _) in self.check_vars.items():
+            if var.get() == 1:
+                # Si existe un Excel con el mismo nombre, convertirlo a PDF
+                ruta_final = self.conversor_excel.convertir_si_existe(ruta_pdf)
+                seleccionados.append(ruta_final)
+
+        self.gestor.actualizar_seleccion(seleccionados)
+
+        if not self.gestor.hay_seleccion():
+            messagebox.showwarning("Advertencia", "No hay archivos seleccionados para unir.")
+            return
+
         exito, mensaje = self.gestor.unir_pdfs()
 
         if not exito:
             messagebox.showwarning("Advertencia", mensaje)
         else:
             messagebox.showinfo("Éxito", f"PDFs unidos correctamente en:\n{mensaje}")
+
