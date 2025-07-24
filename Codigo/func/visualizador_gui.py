@@ -47,9 +47,19 @@ class VisualizadorGUI:
         self.check_vars.clear()
         filtro = self.filtro_var.get()
 
+        ya_mostradas = set()
+
         for subcarpeta, tipos in self.datos.items():
-            label_sub = ttk.Label(self.frame_scroll, text=f"📁 {subcarpeta}", font=("Arial", 10, "bold"))
-            label_sub.pack(anchor="w", pady=(10, 0))
+            partes = subcarpeta.split(os.sep)
+
+            ruta_actual = ""
+            for i, parte in enumerate(partes):
+                ruta_actual = os.path.join(ruta_actual, parte)
+                if ruta_actual not in ya_mostradas:
+                    sangria = "    " * i
+                    label = ttk.Label(self.frame_scroll, text=f"{sangria}📁 {parte}", font=("Arial", 10, "bold"))
+                    label.pack(anchor="w", pady=(0 if i == 0 else 2, 0))
+                    ya_mostradas.add(ruta_actual)
 
             for tipo, archivos in tipos.items():
                 if filtro != "Todos" and tipo != filtro:
@@ -61,11 +71,11 @@ class VisualizadorGUI:
                         var = tk.IntVar()
                         self.check_vars[archivo] = var
                         chk = ttk.Checkbutton(self.frame_scroll, text=nombre, variable=var, command=self.verificar_seleccion_pdf)
-                        chk.pack(anchor="w", padx=20)
+                        chk.pack(anchor="w", padx=20 + len(partes)*10)  # Sangría dinámica
                     else:
-                        # Solo mostrar otros archivos como texto
                         lbl = ttk.Label(self.frame_scroll, text=nombre)
-                        lbl.pack(anchor="w", padx=20)
+                        lbl.pack(anchor="w", padx=20 + len(partes)*10)
+
 
         self.verificar_seleccion_pdf()
 
