@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import subprocess
 import time
@@ -34,7 +35,7 @@ class ConversorExcelPDF:
         if not self._libreoffice_corriendo():
             print("🚀 Iniciando LibreOffice...")
             subprocess.Popen([LIBREOFFICE_PATH, "--headless"])
-            time.sleep(3)  # espera a que arranque
+            time.sleep(3)
             print("✅ LibreOffice iniciado correctamente.")
         else:
             print("✅ LibreOffice ya está activo.")
@@ -83,9 +84,16 @@ class ConversorExcelPDF:
         return pdfs_generados
 
 
-# ── USO ──────────────────────────────────────────────────────
 if __name__ == "__main__":
-    CARPETA = r"E:\Datos Fredy\Programacion\Sylabus_UD\Syllabus_Electronica"
+    if len(sys.argv) < 2:
+        print("❌ Uso: python ConversorExcelPDF.py <carpeta>")
+        sys.exit(1)
 
-    conversor = ConversorExcelPDF(CARPETA)
+    carpeta = sys.argv[1]
+
+    if not os.path.isdir(carpeta):
+        print(f"❌ La carpeta no existe: {carpeta}")
+        sys.exit(1)
+
+    conversor = ConversorExcelPDF(carpeta)
     conversor.convertir_todos()

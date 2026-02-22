@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('api', {
   actualizarCampos: (datos) => ipcRenderer.invoke('actualizar-campos', datos),
   convertirExcelPDF: (datos) => ipcRenderer.invoke('convertir-excel-pdf', datos),
   eliminarArchivo: (datos) => ipcRenderer.invoke('eliminar-archivo', datos),
+  unirPdfs: (datos) => ipcRenderer.invoke('unir-pdfs', datos),
 })

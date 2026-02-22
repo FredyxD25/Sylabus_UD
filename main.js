@@ -12,7 +12,6 @@ function createWindow() {
     height: 800,
     minWidth: 900,
     minHeight: 600,
-    titleBarStyle: "hidden",
     backgroundColor: "#0f1117",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -95,6 +94,10 @@ ipcMain.handle("actualizar-campos", async (_, { carpeta, nuevaFecha }) => {
 
 ipcMain.handle("convertir-excel-pdf", async (_, { carpeta }) => {
   return ejecutarPython("ConversorExcelPDF.py", [carpeta]);
+});
+
+ipcMain.handle("unir-pdfs", async (_, { rutas, destino }) => {
+  return ejecutarPython("UnirPDF.py", [destino, ...rutas]);
 });
 
 ipcMain.handle("eliminar-archivo", async (_, { ruta }) => {
