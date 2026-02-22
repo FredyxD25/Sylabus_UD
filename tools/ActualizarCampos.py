@@ -5,7 +5,7 @@ from openpyxl import load_workbook
 
 # ─── CONFIGURACIÓN ───────────────────────────────────────────
 CARPETA = r"E:\Datos Fredy\Programacion\Sylabus_UD\Syllabus_Electronica"
-NUEVA_FECHA = "27/07/2024"  # ← cambia esto a la nueva fecha
+NUEVA_FECHA = "22/02/2025"  # ← cambia esto a la nueva fecha
 # ─────────────────────────────────────────────────────────────
 
 REEMPLAZOS = {
