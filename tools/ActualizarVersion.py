@@ -1,7 +1,6 @@
 import os
 import sys
 import glob
-import re
 from openpyxl import load_workbook
 
 REEMPLAZOS = {
@@ -9,7 +8,7 @@ REEMPLAZOS = {
     "Version: 01": "Version: 02",
 }
 
-def procesar_celda(valor, patron_fecha, nuevo_texto_fecha):
+def procesar_celda(valor):
     if not isinstance(valor, str):
         return valor, False
     modificado = False
@@ -17,13 +16,9 @@ def procesar_celda(valor, patron_fecha, nuevo_texto_fecha):
         if buscar in valor:
             valor = valor.replace(buscar, reemplazar)
             modificado = True
-    nuevo_valor, n = re.subn(patron_fecha, nuevo_texto_fecha, valor)
-    if n > 0:
-        valor = nuevo_valor
-        modificado = True
     return valor, modificado
 
-def procesar_excel(ruta_archivo, patron_fecha, nuevo_texto_fecha):
+def procesar_excel(ruta_archivo):
     try:
         wb = load_workbook(ruta_archivo)
         archivo_modificado = False
@@ -31,7 +26,7 @@ def procesar_excel(ruta_archivo, patron_fecha, nuevo_texto_fecha):
             hoja = wb[nombre_hoja]
             for fila in hoja.iter_rows():
                 for celda in fila:
-                    nuevo_valor, modificado = procesar_celda(celda.value, patron_fecha, nuevo_texto_fecha)
+                    nuevo_valor, modificado = procesar_celda(celda.value)
                     if modificado:
                         celda.value = nuevo_valor
                         archivo_modificado = True
@@ -43,10 +38,7 @@ def procesar_excel(ruta_archivo, patron_fecha, nuevo_texto_fecha):
     except Exception as e:
         print(f"❌ Error: {os.path.basename(ruta_archivo)} → {e}")
 
-def main(carpeta, nueva_fecha):
-    patron_fecha = r"Fecha de Aprobación:\s*\d{1,2}/\d{1,2}/\d{4}"
-    nuevo_texto_fecha = f"Fecha de Aprobación:\n{nueva_fecha}"
-
+def main(carpeta):
     excels = glob.glob(os.path.join(carpeta, "**", "*.xlsx"), recursive=True)
     excels += glob.glob(os.path.join(carpeta, "**", "*.xls"), recursive=True)
 
@@ -57,26 +49,23 @@ def main(carpeta, nueva_fecha):
     print(f"📂 Carpeta: {carpeta}")
     print(f"📊 Excel encontrados: {len(excels)}")
     print(f"🔄 Versión: 01 → 02")
-    print(f"📅 Nueva fecha: {nueva_fecha}")
     print("=" * 55)
 
     for archivo in excels:
-        procesar_excel(archivo, patron_fecha, nuevo_texto_fecha)
+        procesar_excel(archivo)
 
     print("=" * 55)
     print("✔️  Proceso completado.")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("❌ Uso: python ActualizarCampos.py <carpeta> <nueva_fecha>")
-        print("   Ejemplo: python ActualizarCampos.py C:\\mis\\excels 15/03/2024")
+    if len(sys.argv) < 2:
+        print("❌ Uso: python ActualizarVersion.py <carpeta>")
         sys.exit(1)
 
-    carpeta   = sys.argv[1]
-    nueva_fecha = sys.argv[2]
+    carpeta = sys.argv[1]
 
     if not os.path.isdir(carpeta):
         print(f"❌ La carpeta no existe: {carpeta}")
         sys.exit(1)
 
-    main(carpeta, nueva_fecha)
+    main(carpeta)

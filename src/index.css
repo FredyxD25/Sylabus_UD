@@ -40,3 +40,7 @@ input {
   font-family: 'DM Mono', monospace;
   outline: none;
 }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

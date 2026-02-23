@@ -1,4 +1,11 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  shell,
+  Menu,
+} = require("electron");
 const path = require("path");
 const { spawn } = require("child_process");
 const fs = require("fs");
@@ -19,7 +26,7 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-
+  Menu.setApplicationMenu(null);
   const isDev = process.env.NODE_ENV === "development";
   if (isDev) {
     win.loadURL("http://localhost:5173");
@@ -29,16 +36,13 @@ function createWindow() {
   }
 }
 
-// ── Seleccionar carpeta ──────────────────────────────────────
 ipcMain.handle("seleccionar-carpeta", async () => {
   const result = await dialog.showOpenDialog({ properties: ["openDirectory"] });
   return result.canceled ? null : result.filePaths[0];
 });
 
-// ── Listar archivos ──────────────────────────────────────────
 ipcMain.handle("listar-archivos", async (_, carpeta) => {
   const archivos = [];
-
   function recorrer(dir) {
     if (!fs.existsSync(dir)) return;
     const items = fs.readdirSync(dir, { withFileTypes: true });
@@ -62,17 +66,14 @@ ipcMain.handle("listar-archivos", async (_, carpeta) => {
       }
     }
   }
-
   recorrer(carpeta);
   return archivos;
 });
 
-// ── Abrir archivo ────────────────────────────────────────────
 ipcMain.handle("abrir-archivo", async (_, ruta) => {
   await shell.openPath(ruta);
 });
 
-// ── Ejecutar script Python ───────────────────────────────────
 function ejecutarPython(script, args = []) {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(TOOLS_PATH, script);
@@ -88,21 +89,25 @@ function ejecutarPython(script, args = []) {
   });
 }
 
-ipcMain.handle("actualizar-campos", async (_, { carpeta, nuevaFecha }) => {
-  return ejecutarPython("ActualizarCampos.py", [carpeta, nuevaFecha]);
-});
+ipcMain.handle("actualizar-version", async (_, { carpeta }) =>
+  ejecutarPython("ActualizarVersion.py", [carpeta]),
+);
 
-ipcMain.handle("convertir-excel-pdf", async (_, { carpeta }) => {
-  return ejecutarPython("ConversorExcelPDF.py", [carpeta]);
-});
+ipcMain.handle("actualizar-fecha", async (_, { carpeta, nuevaFecha }) =>
+  ejecutarPython("ActualizarFecha.py", [carpeta, nuevaFecha]),
+);
 
-ipcMain.handle("unir-pdfs", async (_, { rutas, destino }) => {
-  return ejecutarPython("UnirPDF.py", [destino, ...rutas]);
-});
+ipcMain.handle("convertir-excel-pdf", async (_, { carpeta }) =>
+  ejecutarPython("ConversorExcelPDF.py", [carpeta]),
+);
 
-ipcMain.handle("eliminar-archivo", async (_, { ruta }) => {
-  return ejecutarPython("Eliminar.py", [ruta]);
-});
+ipcMain.handle("eliminar-archivo", async (_, { ruta }) =>
+  ejecutarPython("Eliminar.py", [ruta]),
+);
+
+ipcMain.handle("unir-pdfs", async (_, { rutas, destino }) =>
+  ejecutarPython("UnirPDF.py", [destino, ...rutas]),
+);
 
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => {

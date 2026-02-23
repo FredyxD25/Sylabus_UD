@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 
 const api = window.api;
-
 const iconos = { pdf: "📄", xlsx: "📊", xls: "📊" };
 
 const formatBytes = (b) => {
@@ -25,11 +24,13 @@ export default function App() {
   const [filtroCarpeta, setFiltroCarpeta] = useState("todas");
   const [orden, setOrden] = useState("nombre");
   const [cargando, setCargando] = useState(false);
+  const [msgCargando, setMsgCargando] = useState("Procesando...");
   const [log, setLog] = useState([]);
   const [panel, setPanel] = useState(null);
   const [nuevaFecha, setNuevaFecha] = useState("");
   const [nombreUnion, setNombreUnion] = useState("union.pdf");
   const [seleccionados, setSeleccionados] = useState(new Set());
+  const [ultimoClick, setUltimoClick] = useState(null);
 
   const agregarLog = (msg, tipo = "info") =>
     setLog((prev) => [
@@ -37,8 +38,13 @@ export default function App() {
       { msg, tipo, t: new Date().toLocaleTimeString() },
     ]);
 
-  const cargarArchivos = async (dir) => {
+  const iniciarCarga = (msg) => {
+    setMsgCargando(msg);
     setCargando(true);
+  };
+
+  const cargarArchivos = async (dir) => {
+    iniciarCarga("Cargando archivos...");
     try {
       const lista = await api.listarArchivos(dir);
       setArchivos(lista);
@@ -81,8 +87,6 @@ export default function App() {
     });
   }, [archivos, filtroTipo, filtroCarpeta, busqueda, orden]);
 
-  const [ultimoClick, setUltimoClick] = useState(null);
-
   const toggleSeleccion = (ruta, e) => {
     if (e.shiftKey && ultimoClick) {
       const lista = archivosFiltrados.map((a) => a.ruta);
@@ -108,6 +112,7 @@ export default function App() {
 
   const eliminarSeleccionados = async () => {
     if (!seleccionados.size) return;
+    iniciarCarga(`Eliminando ${seleccionados.size} archivo(s)...`);
     for (const ruta of seleccionados) {
       try {
         await api.eliminarArchivo({ ruta });
@@ -124,52 +129,65 @@ export default function App() {
     const pdfsSeleccionados = [...seleccionados].filter((r) =>
       r.toLowerCase().endsWith(".pdf"),
     );
+    const soloHayPDFs =
+      seleccionados.size > 0 && pdfsSeleccionados === seleccionados.size;
     if (pdfsSeleccionados.length < 2) {
       agregarLog("Selecciona al menos 2 PDFs para unir", "error");
       return;
     }
     const destino = `${carpeta}\\${nombreUnion.endsWith(".pdf") ? nombreUnion : nombreUnion + ".pdf"}`;
-    setCargando(true);
+    iniciarCarga(`Uniendo ${pdfsSeleccionados.length} PDFs...`);
+    setPanel(null);
     try {
       await api.unirPdfs({ rutas: pdfsSeleccionados, destino });
       agregarLog(`PDFs unidos → ${nombreUnion}`, "ok");
       setSeleccionados(new Set());
-      setPanel(null);
       cargarArchivos(carpeta);
     } catch (e) {
       agregarLog(`Error al unir: ${e}`, "error");
-    } finally {
       setCargando(false);
     }
   };
 
-  const actualizarCampos = async () => {
-    if (!carpeta || !nuevaFecha) return;
-    setCargando(true);
+  const actualizarVersion = async () => {
+    if (!carpeta) return;
+    iniciarCarga("Actualizando versión en archivos Excel...");
+    setPanel(null);
     try {
-      await api.actualizarCampos({ carpeta, nuevaFecha });
-      agregarLog("Campos actualizados correctamente", "ok");
+      await api.actualizarVersion({ carpeta });
+      agregarLog("Versión actualizada correctamente", "ok");
       cargarArchivos(carpeta);
     } catch (e) {
       agregarLog(`Error: ${e}`, "error");
-    } finally {
       setCargando(false);
-      setPanel(null);
+    }
+  };
+
+  const actualizarFecha = async () => {
+    if (!carpeta || !nuevaFecha) return;
+    iniciarCarga("Actualizando fecha de aprobación...");
+    setPanel(null);
+    try {
+      await api.actualizarFecha({ carpeta, nuevaFecha });
+      agregarLog("Fecha actualizada correctamente", "ok");
+      cargarArchivos(carpeta);
+    } catch (e) {
+      agregarLog(`Error: ${e}`, "error");
+      setCargando(false);
     }
   };
 
   const convertirExcelPDF = async () => {
     if (!carpeta) return;
-    setCargando(true);
+    iniciarCarga("Convirtiendo Excel a PDF con LibreOffice...");
+    setPanel(null);
     try {
       await api.convertirExcelPDF({ carpeta });
       agregarLog("Excel convertidos a PDF correctamente", "ok");
       cargarArchivos(carpeta);
     } catch (e) {
       agregarLog(`Error: ${e}`, "error");
-    } finally {
       setCargando(false);
-      setPanel(null);
     }
   };
 
@@ -179,7 +197,6 @@ export default function App() {
 
   return (
     <div style={s.root}>
-      {/* ── Sidebar ── */}
       <aside style={s.sidebar}>
         <div style={s.logo}>
           <span style={s.logoIcon}>◈</span>
@@ -204,10 +221,17 @@ export default function App() {
         <div style={s.seccion}>ACCIONES</div>
         <button
           style={s.btnAccion}
-          onClick={() => setPanel("actualizar")}
+          onClick={() => setPanel("version")}
           disabled={!carpeta}
         >
-          🔄 Actualizar versión / fecha
+          🔄 Actualizar versión
+        </button>
+        <button
+          style={s.btnAccion}
+          onClick={() => setPanel("fecha")}
+          disabled={!carpeta}
+        >
+          📅 Actualizar fecha
         </button>
         <button
           style={s.btnAccion}
@@ -248,7 +272,10 @@ export default function App() {
           <button
             key={t}
             style={filtroTipo === t ? s.filtroActivo : s.filtro}
-            onClick={() => setFiltroTipo(t)}
+            onClick={() => {
+              setFiltroTipo(t);
+              setSeleccionados(new Set());
+            }}
           >
             {t === "todos" ? "🗂 Todos" : t === "pdf" ? "📄 PDF" : "📊 Excel"}
           </button>
@@ -258,7 +285,10 @@ export default function App() {
         <select
           style={s.select}
           value={filtroCarpeta}
-          onChange={(e) => setFiltroCarpeta(e.target.value)}
+          onChange={(e) => {
+            setFiltroCarpeta(e.target.value);
+            setSeleccionados(new Set());
+          }}
         >
           {carpetasUnicas.map((c) => (
             <option key={c} value={c}>
@@ -290,7 +320,6 @@ export default function App() {
         </div>
       </aside>
 
-      {/* ── Main ── */}
       <main style={s.main}>
         <div style={s.toolbar}>
           <input
@@ -322,9 +351,7 @@ export default function App() {
           )}
         </div>
 
-        {cargando ? (
-          <div style={s.empty}>⏳ Procesando...</div>
-        ) : !carpeta ? (
+        {!carpeta ? (
           <div style={s.empty}>
             <div style={s.emptyIcon}>◈</div>
             <div>Selecciona una carpeta para comenzar</div>
@@ -370,16 +397,50 @@ export default function App() {
         )}
       </main>
 
+      {/* ── Loader overlay ── */}
+      {cargando && (
+        <div style={s.loaderOverlay}>
+          <div style={s.loaderBox}>
+            <div style={s.spinnerWrap}>
+              <div style={s.spinnerRing} />
+              <span style={s.spinnerIcon}>◈</span>
+            </div>
+            <span style={s.loaderText}>{msgCargando}</span>
+            <span style={s.loaderSub}>
+              Por favor espera, esto puede tardar unos segundos
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* ── Modales ── */}
-      {panel && (
+      {panel && !cargando && (
         <div style={s.overlay} onClick={() => setPanel(null)}>
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            {panel === "actualizar" && (
+            {panel === "version" && (
               <>
-                <h2 style={s.modalTitle}>🔄 Actualizar Versión y Fecha</h2>
+                <h2 style={s.modalTitle}>🔄 Actualizar Versión</h2>
                 <p style={s.muted}>
-                  Actualiza "Versión: 01 → 02" y la fecha de aprobación en todos
-                  los Excel.
+                  Reemplaza <b style={{ color: "#e8eaf0" }}>"Versión: 01"</b>{" "}
+                  por <b style={{ color: "#4f6ef7" }}>"Versión: 02"</b> en todos
+                  los archivos Excel de la carpeta.
+                </p>
+                <div style={s.modalBtns}>
+                  <button style={s.btnSecondary} onClick={() => setPanel(null)}>
+                    Cancelar
+                  </button>
+                  <button style={s.btnPrimary} onClick={actualizarVersion}>
+                    Ejecutar
+                  </button>
+                </div>
+              </>
+            )}
+
+            {panel === "fecha" && (
+              <>
+                <h2 style={s.modalTitle}>📅 Actualizar Fecha</h2>
+                <p style={s.muted}>
+                  Reemplaza la fecha de aprobación en todos los archivos Excel.
                 </p>
                 <label style={s.label}>Nueva fecha de aprobación</label>
                 <input
@@ -395,7 +456,7 @@ export default function App() {
                   </button>
                   <button
                     style={s.btnPrimary}
-                    onClick={actualizarCampos}
+                    onClick={actualizarFecha}
                     disabled={!nuevaFecha}
                   >
                     Ejecutar
@@ -747,4 +808,42 @@ const s = {
     fontSize: 13,
   },
   muted: { fontSize: 12, color: "#5a6080" },
+  loaderOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "#000000bb",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 300,
+  },
+  loaderBox: {
+    background: "#12151f",
+    border: "1px solid #1e2333",
+    borderRadius: 20,
+    padding: "36px 48px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 16,
+  },
+  spinnerWrap: {
+    position: "relative",
+    width: 56,
+    height: 56,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  spinnerRing: {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "50%",
+    border: "3px solid #1e2333",
+    borderTop: "3px solid #4f6ef7",
+    animation: "spin 0.8s linear infinite",
+  },
+  spinnerIcon: { fontSize: 20, color: "#4f6ef7" },
+  loaderText: { fontSize: 15, fontWeight: 700, color: "#e8eaf0" },
+  loaderSub: { fontSize: 11, color: "#5a6080" },
 };
