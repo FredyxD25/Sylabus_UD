@@ -26,4 +26,6 @@ build/
 dist/
 main.spec
 
-node_modules
+node_modules/
+release/
+*.spec
