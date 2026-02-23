@@ -1,4 +1,3 @@
 portable, cmd en modo admin:
     npm run dist
     
-carpeta relase

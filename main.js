@@ -11,7 +11,6 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 
 const PYTHON = "python";
-const TOOLS_PATH = path.join(__dirname, "tools");
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -76,7 +75,11 @@ ipcMain.handle("abrir-archivo", async (_, ruta) => {
 
 function ejecutarPython(script, args = []) {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(TOOLS_PATH, script);
+    const toolsPath = app.isPackaged
+      ? path.join(process.resourcesPath, "app.asar.unpacked", "tools")
+      : path.join(__dirname, "tools");
+
+    const scriptPath = path.join(toolsPath, script);
     const proc = spawn(PYTHON, [scriptPath, ...args]);
     let salida = "";
     let error = "";

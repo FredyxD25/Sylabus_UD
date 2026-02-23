@@ -36,6 +36,9 @@
       "package.json",
       "tools/**/*"
     ],
+    "asarUnpack": [
+      "tools/**/*"
+    ],
     "win": {
       "target": "portable"
     },
