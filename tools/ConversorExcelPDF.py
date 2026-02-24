@@ -28,17 +28,17 @@ class ConversorExcelPDF:
 
     def _asegurar_libreoffice_activo(self):
         if not self._libreoffice_instalado():
-            print("❌ LibreOffice no está instalado.")
-            print("   Descárgalo en: https://www.libreoffice.org/download/download/")
+            print("LibreOffice no está instalado.")
+            print("Descárgalo en: https://www.libreoffice.org/download/download/")
             raise FileNotFoundError("LibreOffice no encontrado.")
 
         if not self._libreoffice_corriendo():
-            print("🚀 Iniciando LibreOffice...")
+            print("Iniciando LibreOffice...")
             subprocess.Popen([LIBREOFFICE_PATH, "--headless"])
             time.sleep(3)
-            print("✅ LibreOffice iniciado correctamente.")
+            print("LibreOffice iniciado correctamente.")
         else:
-            print("✅ LibreOffice ya está activo.")
+            print("LibreOffice ya está activo.")
 
     def convertir_archivo(self, ruta_excel):
         try:
@@ -54,11 +54,11 @@ class ConversorExcelPDF:
 
             nombre_pdf = os.path.splitext(os.path.basename(ruta_excel))[0] + ".pdf"
             ruta_pdf = os.path.join(carpeta_destino, nombre_pdf)
-            print(f"✅ Convertido: {os.path.basename(ruta_excel)} → {nombre_pdf}")
+            print(f"Convertido: {os.path.basename(ruta_excel)} -> {nombre_pdf}")
             return ruta_pdf
 
         except subprocess.CalledProcessError as e:
-            print(f"❌ Error al convertir: {os.path.basename(ruta_excel)} → {e}")
+            print(f"Error al convertir: {os.path.basename(ruta_excel)} -> {e}")
             return None
 
     def convertir_todos(self):
@@ -66,11 +66,11 @@ class ConversorExcelPDF:
         excels += glob.glob(os.path.join(self.carpeta, "**", "*.xls"), recursive=True)
 
         if not excels:
-            print("⚠️  No se encontraron archivos Excel.")
+            print("No se encontraron archivos Excel.")
             return []
 
-        print(f"📂 Carpeta: {self.carpeta}")
-        print(f"📊 Excel encontrados: {len(excels)}")
+        print(f"Carpeta: {self.carpeta}")
+        print(f"Excel encontrados: {len(excels)}")
         print("=" * 55)
 
         pdfs_generados = []
@@ -80,19 +80,19 @@ class ConversorExcelPDF:
                 pdfs_generados.append(pdf)
 
         print("=" * 55)
-        print(f"✔️  PDFs generados: {len(pdfs_generados)} de {len(excels)}")
+        print(f"PDFs generados: {len(pdfs_generados)} de {len(excels)}")
         return pdfs_generados
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("❌ Uso: python ConversorExcelPDF.py <carpeta>")
+        print("Uso: python ConversorExcelPDF.py <carpeta>")
         sys.exit(1)
 
     carpeta = sys.argv[1]
 
     if not os.path.isdir(carpeta):
-        print(f"❌ La carpeta no existe: {carpeta}")
+        print(f"La carpeta no existe: {carpeta}")
         sys.exit(1)
 
     conversor = ConversorExcelPDF(carpeta)
