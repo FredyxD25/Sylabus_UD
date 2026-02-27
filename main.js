@@ -112,6 +112,10 @@ ipcMain.handle("unir-pdfs", async (_, { rutas, destino }) =>
   ejecutarPython("UnirPDF.py", [destino, ...rutas]),
 );
 
+ipcMain.handle("actualizar-codigo", async (_, { carpeta }) =>
+  ejecutarPython("ActualizarCodigo.py", [carpeta]),
+);
+
 app.whenReady().then(createWindow);
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();

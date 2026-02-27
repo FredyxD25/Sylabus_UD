@@ -5,8 +5,8 @@ import zipfile
 import shutil
 
 REEMPLAZOS = {
-    "Versión: 01": "Versión: 02",
-    "Version: 01": "Version: 02",
+    "Código: AA-FR-003": "Código: CC-FR-003",
+    "Codigo: AA-FR-003": "Codigo: CC-FR-003",
 }
 
 def reemplazar_en_xml(contenido_bytes):
@@ -25,12 +25,10 @@ def procesar_excel(ruta_archivo):
     nombre = os.path.basename(ruta_archivo)
     tmp_zip = ruta_archivo + ".tmp_repack.xlsx"
     try:
-        # 1. Leer TODOS los entries conservando metadatos originales
         with zipfile.ZipFile(ruta_archivo, "r") as zin:
-            infolist  = zin.infolist()
+            infolist   = zin.infolist()
             contenidos = {info.filename: zin.read(info.filename) for info in infolist}
 
-        # 2. Modificar solo XML de celdas y strings compartidos
         archivos_a_procesar = [
             fn for fn in contenidos
             if (fn == "xl/sharedStrings.xml" or fn.startswith("xl/worksheets/"))
@@ -48,8 +46,6 @@ def procesar_excel(ruta_archivo):
             print(f"Sin cambios: {nombre}")
             return
 
-        # 3. Re-empaquetar copiando el ZipInfo COMPLETO de cada entry
-        #    Esto garantiza que imagenes, drawings y relaciones queden intactos
         with zipfile.ZipFile(tmp_zip, "w", allowZip64=True) as zout:
             for info in infolist:
                 zi = zipfile.ZipInfo(info.filename)
@@ -58,10 +54,9 @@ def procesar_excel(ruta_archivo):
                 zi.create_system  = info.create_system
                 zi.create_version = info.create_version
                 zi.date_time      = info.date_time
-                zi.flag_bits      = info.flag_bits & ~0x8  # quitar data-descriptor
+                zi.flag_bits      = info.flag_bits & ~0x8
                 zout.writestr(zi, contenidos[info.filename])
 
-        # 4. Sustituir el archivo original
         shutil.move(tmp_zip, ruta_archivo)
         print(f"Actualizado: {nombre}")
 
@@ -78,7 +73,7 @@ def main(carpeta):
         return
     print(f"Carpeta: {carpeta}")
     print(f"Excel encontrados: {len(excels)}")
-    print("Version: 01 -> 02")
+    print("Codigo: AA-FR-003 -> CC-FR-003")
     print("=" * 55)
     for archivo in excels:
         procesar_excel(archivo)
@@ -87,7 +82,7 @@ def main(carpeta):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python ActualizarVersion.py <carpeta>")
+        print("Uso: python ActualizarCodigo.py <carpeta>")
         sys.exit(1)
     carpeta = sys.argv[1]
     if not os.path.isdir(carpeta):
